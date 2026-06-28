@@ -1,0 +1,65 @@
+name: inkflow
+description: "InkFlow — Capture Ideas. Organize Life. A production-ready note-taking app."
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # ─── State Management ────────────────────────────────────────────────────────
+  # Riverpod is the state management solution for InkFlow.
+  # flutter_riverpod: the Flutter adapter (provides ProviderScope, ConsumerWidget, etc.)
+  # riverpod_annotation: enables the @riverpod code-generation annotation
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+
+  # ─── Navigation ──────────────────────────────────────────────────────────────
+  # GoRouter provides declarative routing, named routes, and deep-link support.
+  go_router: ^14.2.7
+
+  # ─── Local Storage ───────────────────────────────────────────────────────────
+  # Hive is an extremely fast, lightweight NoSQL key-value store.
+  # hive_flutter: adds Flutter-specific helpers (Hive.initFlutter).
+  # path_provider: resolves the device's document directory for Hive to store data.
+  hive_flutter: ^1.1.0
+  path_provider: ^2.1.3
+
+  # ─── Typography ──────────────────────────────────────────────────────────────
+  # Google Fonts loads Inter (body) and Playfair Display (headings) at runtime.
+  google_fonts: ^6.2.1
+
+  # ─── Animations ──────────────────────────────────────────────────────────────
+  # flutter_animate provides a declarative, chainable animation API.
+  # e.g., widget.animate().fadeIn().slideY()
+  flutter_animate: ^4.5.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # ─── Lint Rules ──────────────────────────────────────────────────────────────
+  # flutter_lints: official Flutter lint ruleset.
+  # custom_lint: plugin system that allows packages like riverpod_lint to work.
+  # riverpod_lint: warns about common Riverpod mistakes (e.g., ref.read in build).
+  flutter_lints: ^4.0.0
+  custom_lint: ^0.6.4
+  riverpod_lint: ^2.3.10
+
+  # ─── Code Generation ─────────────────────────────────────────────────────────
+  # build_runner: the tool that runs code generators.
+  # riverpod_generator: generates @riverpod provider boilerplate (.g.dart files).
+  # hive_generator: generates Hive TypeAdapter code (needed starting Phase 1).
+  build_runner: ^2.4.9
+  riverpod_generator: ^2.4.0
+  hive_generator: ^2.0.1
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/icons/

@@ -1,0 +1,44 @@
+# analysis_options.yaml
+#
+# This file configures the Dart analyzer and linter for InkFlow.
+# We extend the official Flutter lint rules and add Riverpod-specific rules.
+
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  # Exclude machine-generated files from analysis.
+  # These files are produced by build_runner and we have no control
+  # over the code they emit. Linting them creates false-positive noise.
+  exclude:
+    - '**/*.g.dart'
+    - '**/*.freezed.dart'
+
+  # Activate the custom_lint plugin.
+  # This is required for riverpod_lint to report Riverpod-specific issues.
+  plugins:
+    - custom_lint
+
+  errors:
+    # Suppress false positives from code-generation annotations
+    # (e.g., @riverpod on a class that the generator will process).
+    invalid_annotation_target: ignore
+
+linter:
+  rules:
+    # Enforce const constructors wherever possible — improves performance.
+    - prefer_const_constructors
+
+    # Prefer const for top-level / static variables that can be const.
+    - prefer_const_declarations
+
+    # Always provide a Key for widgets that extend StatelessWidget/StatefulWidget.
+    - use_key_in_widget_constructors
+
+    # Trailing commas make diffs cleaner and auto-formatting more predictable.
+    - require_trailing_commas
+
+    # Use relative imports within the same package (e.g., ../constants/app_sizes.dart).
+    - prefer_relative_imports
+
+    # Avoid print() in production code — use a logger instead.
+    - avoid_print
