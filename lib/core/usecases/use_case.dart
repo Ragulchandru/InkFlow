@@ -1,6 +1,6 @@
 // lib/core/usecases/use_case.dart
 //
-// Base contract shared by every use case in InkFlow.
+// Base contract shared by every use case in Orynta.
 //
 // Why a base class?
 //   All use cases share the same shape: they take some input (Params) and
@@ -15,7 +15,7 @@ import 'package:fpdart/fpdart.dart';
 
 import '../errors/failures.dart';
 
-/// Base contract for every InkFlow use case.
+/// Base contract for every Orynta use case.
 ///
 /// - [Output] — the success value type (e.g., [NoteEntity], [List<NoteEntity>]).
 /// - [Params] — the input parameter type. Use [NoParams] when no input is needed.

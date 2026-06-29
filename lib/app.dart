@@ -1,8 +1,8 @@
 // lib/app.dart
 //
-// The root widget of the InkFlow application.
+// The root widget of the Orynta application.
 //
-// InkFlowApp is a ConsumerWidget (Riverpod-aware) because it needs to:
+// OryntaApp is a ConsumerWidget (Riverpod-aware) because it needs to:
 //   1. Watch the themeModeNotifierProvider to re-render when the user
 //      switches between light and dark mode.
 //   2. Watch the appRouterProvider to get the GoRouter instance.
@@ -18,11 +18,11 @@ import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'shared/providers/theme_provider.dart';
 
-/// The root widget of InkFlow.
+/// The root widget of Orynta.
 ///
 /// Wires together GoRouter (navigation) + AppTheme (design) + Riverpod (state).
-class InkFlowApp extends ConsumerWidget {
-  const InkFlowApp({super.key});
+class OryntaApp extends ConsumerWidget {
+  const OryntaApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -35,7 +35,7 @@ class InkFlowApp extends ConsumerWidget {
 
     return MaterialApp.router(
       // ── App Identity ────────────────────────────────────────────────────
-      title: 'InkFlow',
+      title: 'Orynta',
       debugShowCheckedModeBanner: false,
 
       // ── Theme ───────────────────────────────────────────────────────────

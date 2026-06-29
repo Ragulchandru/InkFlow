@@ -1,6 +1,6 @@
 // lib/shared/widgets/ink_error_view.dart
 //
-// InkErrorView — InkFlow's generic error state widget.
+// InkErrorView — Orynta's generic error state widget.
 //
 // Shown when an AsyncNotifier's build() throws a Failure — i.e., when
 // notesProvider, archivedNotesProvider, etc. surface an AsyncError.

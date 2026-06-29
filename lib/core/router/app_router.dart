@@ -1,6 +1,6 @@
 // lib/core/router/app_router.dart
 //
-// GoRouter configuration for InkFlow.
+// GoRouter configuration for Orynta.
 //
 // Why wrap GoRouter in a Riverpod provider?
 //   1. Future auth guards: the redirect callback can call
@@ -20,6 +20,7 @@ import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../features/home/presentation/screens/home_screen.dart';
+import '../../features/notes/presentation/screens/note_editor_screen.dart';
 import 'route_names.dart';
 
 // This line tells build_runner to generate app_router.g.dart.
@@ -40,8 +41,7 @@ GoRouter appRouter(Ref ref) {
     initialLocation: '/',
 
     routes: [
-      // ── Phase 0 placeholder ────────────────────────────────────────────────
-      // In Phase 1 this will be replaced with the NotesScreen ShellRoute.
+      // ── Home Screen ─────────────────────────────────────────────────────────
       GoRoute(
         path: '/',
         name: RouteNames.home,
@@ -50,17 +50,30 @@ GoRouter appRouter(Ref ref) {
         },
       ),
 
-      // ── Phase 1+ routes will be added here ────────────────────────────────
-      // Example (commented out — do not uncomment until Phase 1):
-      //
-      // ShellRoute(
-      //   builder: (context, state, child) => AppShell(child: child),
-      //   routes: [
-      //     GoRoute(path: '/notes', name: RouteNames.notes, ...),
-      //     GoRoute(path: '/search', name: RouteNames.search, ...),
-      //     GoRoute(path: '/settings', name: RouteNames.settings, ...),
-      //   ],
-      // ),
+      // ── Note Editor — Create mode ────────────────────────────────────────────
+      // Path: /notes/new
+      // Opened by the FAB on the Home Screen.
+      // No noteId → NoteEditorScreen runs in create mode.
+      GoRoute(
+        path: '/notes/new',
+        name: RouteNames.noteEditor,
+        builder: (BuildContext context, GoRouterState state) {
+          return const NoteEditorScreen();
+        },
+      ),
+
+      // ── Note Editor — Edit mode ──────────────────────────────────────────────
+      // Path: /notes/:id
+      // Opened by tapping a NoteCard on the Home Screen.
+      // noteId param → NoteEditorScreen loads the note and runs in edit mode.
+      GoRoute(
+        path: '/notes/:id',
+        name: RouteNames.noteDetail,
+        builder: (BuildContext context, GoRouterState state) {
+          final noteId = state.pathParameters['id']!;
+          return NoteEditorScreen(noteId: noteId);
+        },
+      ),
     ],
 
     // Shown when the user navigates to an unknown route.
@@ -77,3 +90,4 @@ GoRouter appRouter(Ref ref) {
     },
   );
 }
+

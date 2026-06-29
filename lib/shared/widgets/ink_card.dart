@@ -1,6 +1,6 @@
 // lib/shared/widgets/ink_card.dart
 //
-// InkCard — InkFlow's branded container/card widget.
+// InkCard — Orynta's branded container/card widget.
 //
 // Built on top of Flutter's Material widget (not Card) for maximum control:
 //   - Supports custom background colors (critical for note color tinting).
@@ -25,7 +25,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/constants/app_sizes.dart';
 
-/// InkFlow's branded surface/container card.
+/// Orynta's branded surface/container card.
 ///
 /// Wraps content in a rounded, optionally-colored Material container with
 /// a proper InkWell ripple for tappable cards.

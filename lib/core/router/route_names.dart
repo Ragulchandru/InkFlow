@@ -10,7 +10,7 @@
 //   a single typo would cause a runtime error with no compile-time warning.
 //   Constants give us compile-time safety — a typo becomes a missing symbol.
 
-/// Named route identifiers for InkFlow's navigation graph.
+/// Named route identifiers for Orynta's navigation graph.
 abstract final class RouteNames {
   // ─── Phase 0 ──────────────────────────────────────────────────────────────
   /// Placeholder home screen (replaced by NotesScreen in Phase 1).

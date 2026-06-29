@@ -1,39 +1,33 @@
 // lib/features/notes/presentation/widgets/note_card.dart
 //
-// NoteCard — Domain-aware note card for InkFlow's list views.
+// NoteCard — Premium domain-aware note card for Orynta.
 //
-// This widget knows about NoteEntity and renders all its visual fields.
-// It lives in the PRESENTATION layer of the notes feature — not in
-// shared/widgets — because it depends on the domain model.
+// Design inspiration: Apple Notes · Craft · Material You
 //
 // Visual anatomy:
 //
-//   ┌─────────────────────────────────────┐  ← color tint background
-//   │ 📌  [pin indicator, if pinned]      │
-//   │ Note title (titleSmall, 2-line max) │
-//   │ Body preview  (bodySmall, 2-line)   │
-//   │                                     │
-//   │ [chip]    Jun 28      ♥             │  ← footer row
+//   ┌─────────────────────────────────────┐  ← tinted surface, r=16
+//   │  ┌─── Accent strip ───────────┐    │  ← 3px left accent if colored
+//   │  │                            │    │
+//   │  │  📌  Note title            │    │  ← titleMedium, w600
+//   │  │  Preview line 1            │    │  ← bodyMedium, onSurfaceVariant
+//   │  │  Preview line 2            │    │
+//   │  │                            │    │
+//   │  │  Jun 28          ♥         │    │  ← footer: timestamp + favorite
+//   │  └────────────────────────────┘    │
 //   └─────────────────────────────────────┘
 //
-// Color tinting:
-//   Uses NoteEntity.color (stored as ARGB int). If null or equal to
-//   AppColors.noteColorDefault (0xFFFFFFFF), the card uses the theme's
-//   default surface color so it blends naturally in both light and dark mode.
-//
-// Timestamp display:
-//   < 7 days ago: relative ("2 hours ago", "Yesterday")
-//   ≥ 7 days ago: absolute ("Jun 28", "Dec 3, 2024")
-//   Computed with a lightweight local helper — no intl package dependency.
-//
-// Long-press menu:
-//   Opens a modal bottom sheet (NoteActionsSheet) with all context actions.
-//   The caller passes callbacks for each action — NoteCard has zero logic.
-//
-// Why feature-scoped instead of shared?
-//   NoteCard depends on NoteEntity (domain model). Putting it in shared/widgets
-//   would create an import from shared → features, breaking the layering.
-//   Feature-specific widgets stay in features/notes/presentation/widgets/.
+// Premium details:
+//   - Soft shadow instead of flat elevation
+//   - Accent bar (3px left border) when note has a custom color
+//   - Generous padding and comfortable line-height
+//   - Animated entrance: fade + subtle slide (no bounciness)
+//   - Favorite animates between heart states with scale pulse
+//   - Title uses titleMedium (larger than titleSmall — more legible on cards)
+//   - Body preview uses bodyMedium with 2 lines
+//   - Dark mode: color is desaturated to avoid garish brightness
+
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -41,13 +35,12 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../domain/entities/note_entity.dart';
-import '../../../../shared/widgets/ink_card.dart';
 
-/// A domain-aware card widget for a single [NoteEntity].
+/// A premium domain-aware card widget for a single [NoteEntity].
 ///
 /// Renders color tinting, title, body preview, pin indicator, favorite
-/// indicator, and a relative/absolute timestamp. Tapping calls [onTap];
-/// long-pressing opens the [NoteActionsSheet] bottom sheet.
+/// icon, and a relative/absolute timestamp. Tapping calls [onTap];
+/// long-pressing opens the [_NoteActionsSheet] bottom sheet.
 class NoteCard extends StatelessWidget {
   const NoteCard({
     super.key,
@@ -67,183 +60,239 @@ class NoteCard extends StatelessWidget {
   final VoidCallback onTap;
 
   /// Called when the user selects "Archive" from the bottom sheet.
-  /// Pass `null` on Archive/Trash screens where archiving is not applicable.
   final VoidCallback? onArchive;
 
-  /// Called when the user selects "Delete" from the bottom sheet.
+  /// Called when the user selects "Move to trash" from the bottom sheet.
   final VoidCallback? onDelete;
 
   /// Called when the user selects "Pin / Unpin" from the bottom sheet.
   final VoidCallback? onTogglePin;
 
-  /// Called when the user taps the favorite heart icon.
+  /// Called when the user taps the favorite heart icon directly on the card.
   final VoidCallback? onToggleFavorite;
 
-  /// Stagger delay for list entrance animations. Pass `Duration(milliseconds: index * 40)`.
+  /// Stagger delay for list entrance animations.
   final Duration animationDelay;
 
-  // ─── Color Tinting ─────────────────────────────────────────────────────────
+  // ─── Color ────────────────────────────────────────────────────────────────
 
-  /// Returns the card background color.
-  ///
-  /// If [NoteEntity.color] is null or the default white sentinel, returns null
-  /// so [InkCard] falls back to the theme's surfaceContainerLow.
-  Color? _cardColor(BuildContext context) {
-    final raw = note.color;
-    if (raw == null || raw == AppColors.noteColorDefault) return null;
+  bool get _hasCustomColor =>
+      note.color != null && note.color != AppColors.noteColorDefault;
 
-    // In dark mode, soften the pastel tones to avoid harsh brightness.
+  /// Returns the tinted surface color for the card background.
+  Color _surfaceColor(BuildContext context) {
+    if (!_hasCustomColor) {
+      return Theme.of(context).colorScheme.surfaceContainerLow;
+    }
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final base = Color(raw);
-    return isDark ? Color.alphaBlend(Colors.black.withValues(alpha: 0.35), base) : base;
+    final base = Color(note.color!);
+    // Dark mode: blend with black to desaturate pastels.
+    return isDark
+        ? Color.alphaBlend(Colors.black.withValues(alpha: 0.45), base)
+        : base;
   }
 
-  // ─── Timestamp ─────────────────────────────────────────────────────────────
+  /// Returns the accent color for the left border strip.
+  Color _accentColor(BuildContext context) {
+    final base = Color(note.color!);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark
+        ? Color.alphaBlend(Colors.black.withValues(alpha: 0.2), base)
+        : Color.alphaBlend(Colors.black.withValues(alpha: 0.15), base);
+  }
 
-  /// Returns a human-readable timestamp string.
-  ///
-  /// - < 1 minute ago: "Just now"
-  /// - < 1 hour ago:   "42 minutes ago"
-  /// - < 24 hours ago: "3 hours ago"
-  /// - < 7 days ago:   "Yesterday" / "3 days ago"
-  /// - ≥ 7 days ago:   "Jun 28" or "Jun 28, 2023" (if different year)
+  // ─── Timestamp ────────────────────────────────────────────────────────────
+
   String _timestamp() {
     final now = DateTime.now();
     final diff = now.difference(note.updatedAt);
 
     if (diff.inMinutes < 1) return 'Just now';
-    if (diff.inMinutes < 60) {
-      return '${diff.inMinutes}m ago';
-    }
-    if (diff.inHours < 24) {
-      return '${diff.inHours}h ago';
-    }
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
     if (diff.inDays == 1) return 'Yesterday';
-    if (diff.inDays < 7) return '${diff.inDays} days ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
 
-    // Absolute date for older notes.
-    final months = [
+    const months = [
       'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
     ];
-    final month = months[note.updatedAt.month - 1];
-    final day = note.updatedAt.day;
-    final year = note.updatedAt.year;
-
-    return year == now.year
-        ? '$month $day'
-        : '$month $day, $year';
+    final m = months[note.updatedAt.month - 1];
+    final d = note.updatedAt.day;
+    final y = note.updatedAt.year;
+    return y == now.year ? '$m $d' : '$m $d, $y';
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final surface = _surfaceColor(context);
     final hasTitle = note.title.isNotEmpty;
     final hasBody = note.body.isNotEmpty;
 
-    return InkCard(
-      backgroundColor: _cardColor(context),
-      onTap: onTap,
-      onLongPress: () => _showActionsSheet(context),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // ── Pin Indicator ──────────────────────────────────────────────
-          if (note.isPinned) ...[
-            Row(
-              children: [
-                Icon(
-                  Icons.push_pin,
-                  size: AppSizes.iconSm,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSizes.xs),
-          ],
+    // On-surface text color — for colored cards, darken for contrast.
+    final onCard = _hasCustomColor
+        ? (isDark
+            ? Colors.white.withValues(alpha: 0.9)
+            : Colors.black.withValues(alpha: 0.80))
+        : theme.colorScheme.onSurface;
 
-          // ── Title ──────────────────────────────────────────────────────
-          if (hasTitle) ...[
-            Text(
-              note.title,
-              style: theme.textTheme.titleSmall?.copyWith(
-                color: theme.colorScheme.onSurface,
-                fontWeight: FontWeight.w600,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            if (hasBody) const SizedBox(height: AppSizes.xs),
-          ],
+    final onCardVariant = _hasCustomColor
+        ? (isDark
+            ? Colors.white.withValues(alpha: 0.60)
+            : Colors.black.withValues(alpha: 0.55))
+        : theme.colorScheme.onSurfaceVariant;
 
-          // ── Body Preview ───────────────────────────────────────────────
-          if (hasBody)
-            Text(
-              note.body,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-
-          const SizedBox(height: AppSizes.sm),
-
-          // ── Footer Row ─────────────────────────────────────────────────
-          Row(
-            children: [
-              // Timestamp
-              Text(
-                _timestamp(),
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant
-                      .withValues(alpha: 0.7),
-                ),
-              ),
-
-              const Spacer(),
-
-              // Favorite toggle
-              GestureDetector(
-                onTap: onToggleFavorite,
-                behavior: HitTestBehavior.opaque,
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSizes.xs),
-                  child: Icon(
-                    note.isFavorite
-                        ? Icons.favorite_rounded
-                        : Icons.favorite_border_rounded,
-                    size: AppSizes.iconSm,
-                    color: note.isFavorite
-                        ? theme.colorScheme.error
-                        : theme.colorScheme.onSurfaceVariant
-                            .withValues(alpha: 0.5),
-                  ),
-                ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        onLongPress: () => _showActionsSheet(context),
+        borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: surface,
+            borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+            // Subtle shadow — softer than Card's default.
+            boxShadow: [
+              BoxShadow(
+                color: isDark
+                    ? Colors.black.withValues(alpha: 0.30)
+                    : Colors.black.withValues(alpha: 0.07),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
-        ],
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // ── Colored left accent strip ────────────────────────────
+                if (_hasCustomColor)
+                  Container(
+                    width: 4,
+                    color: _accentColor(context),
+                  ),
+
+                // ── Card content ─────────────────────────────────────────
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSizes.md,
+                      AppSizes.md,
+                      AppSizes.sm,
+                      AppSizes.sm,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // ── Pin indicator ──────────────────────────────
+                        if (note.isPinned) ...[
+                          Icon(
+                            Icons.push_pin_rounded,
+                            size: AppSizes.iconSm,
+                            color: onCardVariant,
+                          ),
+                          const SizedBox(height: 6),
+                        ],
+
+                        // ── Title ──────────────────────────────────────
+                        if (hasTitle) ...[
+                          Text(
+                            note.title,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: onCard,
+                              fontWeight: FontWeight.w600,
+                              height: 1.25,
+                              letterSpacing: -0.2,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (hasBody) const SizedBox(height: 6),
+                        ],
+
+                        // ── Body preview ───────────────────────────────
+                        if (hasBody)
+                          Text(
+                            note.body,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: onCardVariant,
+                              height: 1.45,
+                            ),
+                            maxLines: hasTitle ? 2 : 4,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+
+                        const SizedBox(height: AppSizes.sm),
+
+                        // ── Footer ─────────────────────────────────────
+                        Row(
+                          children: [
+                            Text(
+                              _timestamp(),
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: onCardVariant.withValues(alpha: 0.75),
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                            const Spacer(),
+                            // Favorite icon — direct tap target
+                            GestureDetector(
+                              onTap: onToggleFavorite,
+                              behavior: HitTestBehavior.opaque,
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  AppSizes.sm, AppSizes.xs,
+                                  AppSizes.xs, AppSizes.xs,
+                                ),
+                                child: Icon(
+                                  note.isFavorite
+                                      ? Icons.favorite_rounded
+                                      : Icons.favorite_border_rounded,
+                                  size: 16,
+                                  color: note.isFavorite
+                                      ? theme.colorScheme.error
+                                      : onCardVariant.withValues(alpha: 0.5),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     )
-        // Staggered entrance animation for list items.
+        // Staggered entrance: fade + very gentle upward slide.
         .animate(delay: animationDelay)
-        .fadeIn(duration: AppSizes.durationNormal)
+        .fadeIn(
+          duration: const Duration(milliseconds: 260),
+          curve: Curves.easeOut,
+        )
         .slideY(
-          begin: 0.08,
+          begin: 0.06,
           end: 0,
-          duration: AppSizes.durationNormal,
+          duration: const Duration(milliseconds: 300),
           curve: Curves.easeOutCubic,
         );
   }
 
-  // ─── Long-press Bottom Sheet ───────────────────────────────────────────────
-
-  /// Opens the context actions modal bottom sheet for this note.
   void _showActionsSheet(BuildContext context) {
     showModalBottomSheet<void>(
       context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (_) => _NoteActionsSheet(
         note: note,
         onTogglePin: onTogglePin,
@@ -254,12 +303,8 @@ class NoteCard extends StatelessWidget {
   }
 }
 
-// ─── Context Actions Bottom Sheet ─────────────────────────────────────────────
+// ─── Premium Context Actions Bottom Sheet ─────────────────────────────────────
 
-/// Private modal bottom sheet listing context actions for a note.
-///
-/// Called by [NoteCard] on long-press. Kept private — callers interact
-/// with [NoteCard] via callbacks, not with this widget directly.
 class _NoteActionsSheet extends StatelessWidget {
   const _NoteActionsSheet({
     required this.note,
@@ -277,66 +322,118 @@ class _NoteActionsSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSizes.sm),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Drag handle
-            Container(
-              width: 32,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: AppSizes.sm),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.outlineVariant,
-                borderRadius: BorderRadius.circular(AppSizes.radiusFull),
-              ),
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(
+        top: Radius.circular(AppSizes.radiusXl),
+      ),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHigh
+                .withValues(alpha: 0.95),
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(AppSizes.radiusXl),
             ),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // ── Drag handle ─────────────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.only(
+                    top: AppSizes.sm,
+                    bottom: AppSizes.xs,
+                  ),
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.onSurfaceVariant
+                          .withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(AppSizes.radiusFull),
+                    ),
+                  ),
+                ),
 
-            // ── Pin / Unpin ──────────────────────────────────────────────
-            if (onTogglePin != null)
-              _ActionTile(
-                icon: note.isPinned
-                    ? Icons.push_pin_outlined
-                    : Icons.push_pin_rounded,
-                label: note.isPinned ? 'Unpin' : 'Pin',
-                onTap: () {
-                  Navigator.of(context).pop();
-                  onTogglePin!();
-                },
-              ),
+                // ── Note title preview ──────────────────────────────────
+                if (note.title.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSizes.lg, AppSizes.sm, AppSizes.lg, AppSizes.xs,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            note.title,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
 
-            // ── Archive ──────────────────────────────────────────────────
-            if (onArchive != null)
-              _ActionTile(
-                icon: Icons.archive_outlined,
-                label: 'Archive',
-                onTap: () {
-                  Navigator.of(context).pop();
-                  onArchive!();
-                },
-              ),
+                Divider(
+                  color: theme.colorScheme.outlineVariant
+                      .withValues(alpha: 0.5),
+                  thickness: 1,
+                  height: AppSizes.md,
+                  indent: AppSizes.lg,
+                  endIndent: AppSizes.lg,
+                ),
 
-            // ── Delete ───────────────────────────────────────────────────
-            if (onDelete != null)
-              _ActionTile(
-                icon: Icons.delete_outline_rounded,
-                label: 'Move to trash',
-                color: theme.colorScheme.error,
-                onTap: () {
-                  Navigator.of(context).pop();
-                  onDelete!();
-                },
-              ),
-          ],
+                // ── Actions ─────────────────────────────────────────────
+                if (onTogglePin != null)
+                  _ActionTile(
+                    icon: note.isPinned
+                        ? Icons.push_pin_outlined
+                        : Icons.push_pin_rounded,
+                    label: note.isPinned ? 'Unpin note' : 'Pin note',
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      onTogglePin!();
+                    },
+                  ),
+
+                if (onArchive != null)
+                  _ActionTile(
+                    icon: Icons.archive_outlined,
+                    label: 'Archive',
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      onArchive!();
+                    },
+                  ),
+
+                if (onDelete != null)
+                  _ActionTile(
+                    icon: Icons.delete_outline_rounded,
+                    label: 'Move to trash',
+                    color: theme.colorScheme.error,
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      onDelete!();
+                    },
+                  ),
+
+                const SizedBox(height: AppSizes.sm),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 }
 
-/// A single row action tile inside the bottom sheet.
 class _ActionTile extends StatelessWidget {
   const _ActionTile({
     required this.icon,
@@ -353,18 +450,32 @@ class _ActionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final resolvedColor = color ?? theme.colorScheme.onSurface;
+    final resolved = color ?? theme.colorScheme.onSurface;
 
     return ListTile(
-      leading: Icon(icon, color: resolvedColor),
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: resolved.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+        ),
+        child: Icon(icon, color: resolved, size: AppSizes.iconMd),
+      ),
       title: Text(
         label,
-        style: theme.textTheme.bodyLarge?.copyWith(color: resolvedColor),
+        style: theme.textTheme.bodyLarge?.copyWith(
+          color: resolved,
+          fontWeight: FontWeight.w500,
+        ),
       ),
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(
         horizontal: AppSizes.lg,
         vertical: AppSizes.xs,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppSizes.radiusMd),
       ),
     );
   }

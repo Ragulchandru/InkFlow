@@ -1,6 +1,6 @@
 // lib/core/constants/app_sizes.dart
 //
-// Design tokens for all spatial and temporal values in InkFlow.
+// Design tokens for all spatial and temporal values in Orynta.
 //
 // Why use constants instead of magic numbers?
 //   - Change the entire app's spacing by editing one file.

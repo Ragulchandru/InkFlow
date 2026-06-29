@@ -1,6 +1,6 @@
 // lib/shared/widgets/ink_snack_bar.dart
 //
-// InkSnackBar — InkFlow's SnackBar helper.
+// InkSnackBar — Orynta's SnackBar helper.
 //
 // Problem it solves:
 //   Every screen that mutates data (create, archive, delete, etc.) needs to
@@ -49,7 +49,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/errors/failures.dart';
 
-/// Static helper for showing consistently styled SnackBars in InkFlow.
+/// Static helper for showing consistently styled SnackBars in Orynta.
 ///
 /// All methods call [ScaffoldMessenger.of(context).showSnackBar] internally.
 /// The styling is inherited from [AppTheme.snackBarTheme].

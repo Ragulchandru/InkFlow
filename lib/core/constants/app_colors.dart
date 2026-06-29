@@ -1,6 +1,6 @@
 // lib/core/constants/app_colors.dart
 //
-// Centralized color palette for InkFlow.
+// Centralized color palette for Orynta.
 //
 // Rule: Raw color values live here. The actual Material 3 ColorScheme
 // is generated in AppTheme via ColorScheme.fromSeed(). Widgets should
@@ -9,7 +9,7 @@
 
 import 'package:flutter/material.dart';
 
-/// Brand and palette color constants for InkFlow.
+/// Brand and palette color constants for Orynta.
 abstract final class AppColors {
   // ─── Brand / Seed ─────────────────────────────────────────────────────────
   /// The single seed color from which Material 3 generates the entire

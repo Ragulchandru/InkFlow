@@ -1,6 +1,6 @@
 // lib/shared/widgets/ink_empty_state.dart
 //
-// InkEmptyState — InkFlow's empty-state placeholder widget.
+// InkEmptyState — Orynta's empty-state placeholder widget.
 //
 // Shown whenever a list or screen has no content to display.
 // Each screen passes its own icon, title, and subtitle to communicate
@@ -31,7 +31,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/constants/app_sizes.dart';
 import '../../core/constants/app_strings.dart';
 
-/// InkFlow's empty state placeholder.
+/// Orynta's empty state placeholder.
 ///
 /// Displays a centered icon, title, optional subtitle, and optional action widget.
 /// Each element animates in with a staggered delay for a polished entrance.

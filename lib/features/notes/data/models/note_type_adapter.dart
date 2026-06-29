@@ -14,7 +14,7 @@ import 'note_model.dart';
 ///
 /// hive_generator 2.0.1 pins analyzer >=4.6.0 <7.0.0, conflicting with
 /// freezed and riverpod_generator on Dart 3.12. Removing it unblocks the
-/// entire version graph. With only a handful of models in InkFlow, a
+/// entire version graph. With only a handful of models in Orynta, a
 /// manual adapter is a clean, permanent trade-off. It also makes the
 /// binary layout explicit and self-documenting.
 ///

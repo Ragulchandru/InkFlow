@@ -25,7 +25,7 @@
 //   30–39 : Reminders feature
 //   40–49 : Auth / Profile (Phase 6)
 
-/// Unique TypeAdapter IDs for every Hive model in InkFlow.
+/// Unique TypeAdapter IDs for every Hive model in Orynta.
 abstract final class HiveTypeIds {
   // ── Phase 1: Notes ────────────────────────────────────────────────────────
   /// TypeAdapter ID for [NoteModel].

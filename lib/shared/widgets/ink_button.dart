@@ -1,6 +1,6 @@
 // lib/shared/widgets/ink_button.dart
 //
-// InkButton — InkFlow's universal button component.
+// InkButton — Orynta's universal button component.
 //
 // Wraps Material 3's native button types (FilledButton, OutlinedButton,
 // TextButton) under a single API, so the rest of the app never imports
@@ -23,7 +23,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../core/constants/app_sizes.dart';
 
-/// The button variants available in InkFlow.
+/// The button variants available in Orynta.
 enum InkButtonVariant {
   /// Filled background — primary actions (e.g., "Save", "Create").
   primary,
@@ -38,7 +38,7 @@ enum InkButtonVariant {
   destructive,
 }
 
-/// InkFlow's branded button widget.
+/// Orynta's branded button widget.
 ///
 /// Use the named constructors for ergonomic variant selection:
 /// ```dart

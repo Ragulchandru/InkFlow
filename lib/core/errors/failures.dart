@@ -30,7 +30,7 @@
 //   If a new Failure subclass is added here, every switch that doesn't
 //   handle it becomes a compile-time warning — preventing silent bugs.
 
-/// Base class for all domain-level failures in InkFlow.
+/// Base class for all domain-level failures in Orynta.
 ///
 /// Returned as the [Left] side of [Either]<[Failure], T> by every repository.
 /// Never thrown — always returned as a value.

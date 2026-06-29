@@ -6,10 +6,10 @@
 //   2. Required for localization (l10n) when we add multi-language support.
 //   3. No magic strings scattered across the codebase.
 
-/// App-wide string constants for InkFlow.
+/// App-wide string constants for Orynta.
 abstract final class AppStrings {
-  // ─── App Identity ─────────────────────────────────────────────────────────
-  static const String appName = 'InkFlow';
+  // ─── App Identity ────────────────────────────────────────────────────────────────────────
+  static const String appName = 'Orynta';
   static const String appTagline = 'Capture Ideas. Organize Life.';
 
   // ─── Hive Box Names ───────────────────────────────────────────────────────

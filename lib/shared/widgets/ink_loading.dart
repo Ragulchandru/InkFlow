@@ -1,6 +1,6 @@
 // lib/shared/widgets/ink_loading.dart
 //
-// InkLoading — InkFlow's loading indicator widget.
+// InkLoading — Orynta's loading indicator widget.
 //
 // Wraps CircularProgressIndicator with consistent sizing and an optional
 // descriptive label. Used to replace content areas while data is loading.
@@ -25,7 +25,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/constants/app_sizes.dart';
 import '../../core/constants/app_strings.dart';
 
-/// InkFlow's branded loading indicator.
+/// Orynta's branded loading indicator.
 ///
 /// Shows a [CircularProgressIndicator] with an optional text label below.
 /// Fades in smoothly using [flutter_animate].

@@ -44,7 +44,7 @@ import '../domain/repositories/note_repository.dart';
 /// This happens in `main.dart`:
 /// ```dart
 /// await Hive.openBox<NoteModel>(AppStrings.notesBoxName);
-/// runApp(const ProviderScope(child: InkFlowApp()));
+/// runApp(const ProviderScope(child: OryntaApp()));
 /// ```
 ///
 /// [Hive.box] is synchronous and safe to call here because the box

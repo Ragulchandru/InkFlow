@@ -1,6 +1,6 @@
 // lib/features/home/presentation/screens/home_screen.dart
 //
-// InkFlow Home Screen — Phase 2, Step 8.
+// Orynta Home Screen — Phase 2, Step 8.
 //
 // ─────────────────────────────────────────────────────────────────────────────
 // WIDGET TREE OVERVIEW
@@ -9,7 +9,7 @@
 // HomeScreen (ConsumerStatefulWidget)
 //   └── Scaffold
 //         ├── AppBar (_HomeAppBar)
-//         │     ├── "InkFlow" title + Playfair Display logotype
+//         │     ├── "Orynta" title + Playfair Display logotype
 //         │     ├── Search icon → expands InkSearchBar
 //         ├── Body (CustomScrollView)
 //         │     ├── SliverToBoxAdapter → _SearchBar (visible when _isSearching)
@@ -68,10 +68,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/errors/failures.dart';
+import '../../../../core/router/route_names.dart';
 import '../../../../shared/providers/theme_provider.dart';
 import '../../../../shared/widgets/ink_empty_state.dart';
 import '../../../../shared/widgets/ink_error_view.dart';
@@ -87,7 +89,7 @@ import '../../../notes/presentation/widgets/note_card.dart';
 // HomeScreen
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// The main screen of InkFlow — displays the user's active notes.
+/// The main screen of Orynta — displays the user's active notes.
 ///
 /// Uses [ConsumerStatefulWidget] for local search-bar expand/collapse state
 /// while delegating all note data to Riverpod providers.
@@ -189,7 +191,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 ///
 /// - Floating: appears immediately when scrolling up (not pinned).
 /// - snap: snaps fully into view rather than partially appearing.
-/// - Title: "InkFlow" logotype in Playfair Display via the theme.
+/// - Title: "Orynta" logotype in Playfair Display via the theme.
 class _HomeAppBar extends ConsumerWidget {
   const _HomeAppBar({
     required this.isSearching,
@@ -210,77 +212,118 @@ class _HomeAppBar extends ConsumerWidget {
     return SliverAppBar(
       floating: true,
       snap: true,
+      toolbarHeight: 64,
       elevation: 0,
-      scrolledUnderElevation: 1,
+      scrolledUnderElevation: 0.5,
       backgroundColor: theme.colorScheme.surface,
-      // ── Title ─────────────────────────────────────────────────────────────
-      title: Text(
-        AppStrings.appName,
-        style: theme.textTheme.headlineSmall?.copyWith(
-          color: theme.colorScheme.onSurface,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -0.5,
+      surfaceTintColor: Colors.transparent,
+      title: ShaderMask(
+        shaderCallback: (bounds) => LinearGradient(
+          colors: isDark
+              ? [theme.colorScheme.primary, theme.colorScheme.tertiary]
+              : [
+                  theme.colorScheme.primary,
+                  Color.lerp(
+                    theme.colorScheme.primary,
+                    theme.colorScheme.secondary,
+                    0.6,
+                  )!,
+                ],
+        ).createShader(bounds),
+        blendMode: BlendMode.srcIn,
+        child: Text(
+          AppStrings.appName,
+          style: theme.textTheme.headlineMedium?.copyWith(
+            fontWeight: FontWeight.w800,
+            letterSpacing: -1.0,
+          ),
         ),
       ),
-      // ── Actions ───────────────────────────────────────────────────────────
       actions: [
-        // Search icon — opens the search bar below.
         if (!isSearching)
-          IconButton(
-            icon: const Icon(Icons.search_rounded),
+          _AppBarIconButton(
+            icon: Icons.search_rounded,
             tooltip: 'Search notes',
-            onPressed: onSearchTap,
+            onTap: onSearchTap,
           ),
-
-        // Close search — returns to notes list.
         if (isSearching)
-          IconButton(
-            icon: const Icon(Icons.close_rounded),
+          _AppBarIconButton(
+            icon: Icons.close_rounded,
             tooltip: 'Close search',
-            onPressed: onCloseTap,
+            onTap: onCloseTap,
           ),
-
-        // Theme toggle (preserving the Phase 0 feature).
-        IconButton(
-          icon: AnimatedSwitcher(
-            duration: AppSizes.durationNormal,
-            transitionBuilder: (child, animation) => RotationTransition(
-              turns: animation,
-              child: FadeTransition(opacity: animation, child: child),
-            ),
-            child: Icon(
-              isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-              key: ValueKey(isDark),
-            ),
-          ),
-          tooltip: isDark ? 'Switch to light mode' : 'Switch to dark mode',
-          onPressed: () =>
-              ref.read(themeModeNotifierProvider.notifier).toggle(),
+        _AppBarIconButton(
+          icon: isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+          tooltip: isDark ? 'Light mode' : 'Dark mode',
+          onTap: () => ref.read(themeModeNotifierProvider.notifier).toggle(),
+          animate: true,
+          animateKey: isDark,
         ),
-
-        // More menu (placeholder — Step 9+).
         PopupMenuButton<String>(
-          icon: const Icon(Icons.more_vert_rounded),
+          icon: Icon(
+            Icons.more_vert_rounded,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
           tooltip: 'More options',
-          onSelected: (_) {}, // placeholder
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+          ),
+          onSelected: (_) {},
           itemBuilder: (_) => const [
-            PopupMenuItem(
-              value: 'archive',
-              child: Text('Archive'),
-            ),
-            PopupMenuItem(
-              value: 'trash',
-              child: Text('Trash'),
-            ),
-            PopupMenuItem(
-              value: 'settings',
-              child: Text('Settings'),
-            ),
+            PopupMenuItem(value: 'archive', child: Text('Archive')),
+            PopupMenuItem(value: 'trash', child: Text('Trash')),
+            PopupMenuItem(value: 'settings', child: Text('Settings')),
           ],
         ),
-
         const SizedBox(width: AppSizes.xs),
       ],
+    );
+  }
+}
+
+/// Rounded icon button for the AppBar — slightly larger hit area, uniform style.
+class _AppBarIconButton extends StatelessWidget {
+  const _AppBarIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+    this.animate = false,
+    this.animateKey,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+  final bool animate;
+  final Object? animateKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final iconWidget = Icon(
+      icon,
+      color: theme.colorScheme.onSurfaceVariant,
+      key: animate ? ValueKey(animateKey) : null,
+    );
+
+    return IconButton(
+      icon: animate
+          ? AnimatedSwitcher(
+              duration: AppSizes.durationNormal,
+              transitionBuilder: (child, anim) => RotationTransition(
+                turns: anim,
+                child: FadeTransition(opacity: anim, child: child),
+              ),
+              child: iconWidget,
+            )
+          : iconWidget,
+      tooltip: tooltip,
+      style: IconButton.styleFrom(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+        ),
+      ),
+      onPressed: onTap,
     );
   }
 }
@@ -308,32 +351,54 @@ class _SearchBar extends ConsumerWidget {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppSizes.md,
-        AppSizes.sm,
-        AppSizes.md,
-        AppSizes.xs,
+        AppSizes.md, AppSizes.xs, AppSizes.md, AppSizes.sm,
       ),
-      child: TextField(
-        controller: controller,
-        focusNode: focusNode,
-        textInputAction: TextInputAction.search,
-        style: theme.textTheme.bodyLarge,
-        decoration: InputDecoration(
-          hintText: 'Search your notes...',
-          prefixIcon: const Icon(Icons.search_rounded),
-          suffixIcon: controller.text.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear_rounded),
-                  onPressed: () {
-                    controller.clear();
-                    ref.read(searchQueryProvider.notifier).state = '';
-                  },
-                )
-              : null,
+      child: Container(
+        height: 52,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(AppSizes.radiusXl),
         ),
-        onChanged: (value) {
-          ref.read(searchQueryProvider.notifier).state = value;
-        },
+        child: TextField(
+          controller: controller,
+          focusNode: focusNode,
+          textInputAction: TextInputAction.search,
+          style: theme.textTheme.bodyLarge?.copyWith(
+            color: theme.colorScheme.onSurface,
+          ),
+          decoration: InputDecoration(
+            hintText: 'Search your notes…',
+            hintStyle: theme.textTheme.bodyLarge?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            prefixIcon: Icon(
+              Icons.search_rounded,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            suffixIcon: controller.text.isNotEmpty
+                ? IconButton(
+                    icon: Icon(
+                      Icons.clear_rounded,
+                      color: theme.colorScheme.onSurfaceVariant,
+                      size: 18,
+                    ),
+                    onPressed: () {
+                      controller.clear();
+                      ref.read(searchQueryProvider.notifier).state = '';
+                    },
+                  )
+                : null,
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: 14),
+            isDense: true,
+            filled: false,
+          ),
+          onChanged: (value) {
+            ref.read(searchQueryProvider.notifier).state = value;
+          },
+        ),
       ),
     );
   }
@@ -450,7 +515,10 @@ class _NoteList extends ConsumerWidget {
             note: note,
             animationDelay: Duration(milliseconds: index * 40),
             onTap: () {
-              // Navigation to editor — Step 9.
+              context.goNamed(
+                RouteNames.noteDetail,
+                pathParameters: {'id': note.id},
+              );
             },
             onToggleFavorite: () => _toggleFavorite(context, ref, note),
             onTogglePin: () => _togglePin(context, ref, note),
@@ -658,22 +726,14 @@ class _HomeFab extends StatelessWidget {
     return FloatingActionButton.extended(
       heroTag: 'home_fab',
       onPressed: () {
-        // Step 9: context.push(RouteNames.noteEditor)
-      },
+  debugPrint("FAB PRESSED");
+  context.pushNamed(RouteNames.noteEditor);
+},
       icon: const Icon(Icons.add_rounded),
       label: const Text('New Note'),
-    )
-        .animate()
-        .fadeIn(
+    ).animate().fadeIn(
           delay: const Duration(milliseconds: 300),
           duration: AppSizes.durationNormal,
-        )
-        .slideY(
-          begin: 0.5,
-          end: 0,
-          delay: const Duration(milliseconds: 300),
-          duration: AppSizes.durationNormal,
-          curve: Curves.easeOutCubic,
         );
   }
 }

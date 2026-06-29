@@ -19,7 +19,7 @@
 //      The settings box must be open for ThemeModeNotifier (synchronous read).
 //      The notes box must be open for NotesProvider (Phase 1 onward).
 //
-//   5. runApp(ProviderScope(child: InkFlowApp()))
+//   5. runApp(ProviderScope(child: OryntaApp()))
 //      ProviderScope is Riverpod's root container.
 
 import 'package:flutter/material.dart';
@@ -51,7 +51,7 @@ Future<void> main() async {
   // Step 5 — Launch the app.
   runApp(
     const ProviderScope(
-      child: InkFlowApp(),
+      child: OryntaApp(),
     ),
   );
 }

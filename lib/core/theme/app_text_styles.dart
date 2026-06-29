@@ -6,7 +6,7 @@
 //   - Inter (body, labels, titles): Humanist sans-serif. Extremely legible
 //     at all sizes. Used in Figma, Linear, Notion — a modern standard.
 //   - Playfair Display (display headings): Transitional serif. Elegant,
-//     editorial feel that differentiates InkFlow's brand.
+//     editorial feel that differentiates Orynta's brand.
 //
 // Usage:
 //   Text('Hello', style: Theme.of(context).textTheme.titleMedium)
@@ -19,7 +19,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Defines the full Material 3 type scale for InkFlow.
+/// Defines the full Material 3 type scale for Orynta.
 ///
 /// Used exclusively in [AppTheme._buildTheme] to populate [ThemeData.textTheme].
 abstract final class AppTextStyles {

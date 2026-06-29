@@ -13,7 +13,7 @@
 //   the repository (also in the feature folder) to catch them without a
 //   circular import, and allows future features to reuse base types.
 
-/// Base class for all InkFlow application exceptions.
+/// Base class for all Orynta application exceptions.
 ///
 /// Extends [Exception] so that all custom exceptions are identifiable
 /// by a single type in catch clauses.

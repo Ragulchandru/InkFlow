@@ -1,6 +1,6 @@
 // lib/shared/widgets/ink_confirm_dialog.dart
 //
-// InkConfirmDialog — InkFlow's standardised confirmation dialog.
+// InkConfirmDialog — Orynta's standardised confirmation dialog.
 //
 // Used for destructive and irreversible actions before executing them.
 // Returns a Future<bool> — true = user confirmed, false = user cancelled.

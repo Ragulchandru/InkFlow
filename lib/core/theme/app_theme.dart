@@ -1,6 +1,6 @@
 // lib/core/theme/app_theme.dart
 //
-// Material 3 light and dark themes for InkFlow.
+// Material 3 light and dark themes for Orynta.
 //
 // How Material 3 theming works:
 //   ColorScheme.fromSeed(seedColor) generates a full 30-color tonal palette

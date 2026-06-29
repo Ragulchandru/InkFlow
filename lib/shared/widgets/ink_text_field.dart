@@ -1,6 +1,6 @@
 // lib/shared/widgets/ink_text_field.dart
 //
-// InkTextField — InkFlow's branded text input component.
+// InkTextField — Orynta's branded text input component.
 //
 // Wraps Flutter's TextField so that:
 //   1. Consistent styling (from AppTheme's inputDecorationTheme) is applied
@@ -18,7 +18,7 @@
 
 import 'package:flutter/material.dart';
 
-/// InkFlow's branded text input field.
+/// Orynta's branded text input field.
 ///
 /// ```dart
 /// InkTextField(
