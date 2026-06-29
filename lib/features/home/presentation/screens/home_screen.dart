@@ -1,16 +1,69 @@
 // lib/features/home/presentation/screens/home_screen.dart
 //
-// ─────────────────────────────────────────────────────────────────────────────
-// PHASE 0 PLACEHOLDER
-// ─────────────────────────────────────────────────────────────────────────────
-// This screen exists solely to:
-//   1. Prove the GoRouter + Riverpod + Hive pipeline works end-to-end.
-//   2. Visually demonstrate all 5 shared widgets in one screen.
-//   3. Verify the light/dark theme toggle persists across restarts.
+// InkFlow Home Screen — Phase 2, Step 8.
 //
-// In Phase 1, this screen will be REPLACED by NotesScreen.
-// The GoRouter route '/' will point to NotesScreen instead.
 // ─────────────────────────────────────────────────────────────────────────────
+// WIDGET TREE OVERVIEW
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// HomeScreen (ConsumerStatefulWidget)
+//   └── Scaffold
+//         ├── AppBar (_HomeAppBar)
+//         │     ├── "InkFlow" title + Playfair Display logotype
+//         │     ├── Search icon → expands InkSearchBar
+//         ├── Body (CustomScrollView)
+//         │     ├── SliverToBoxAdapter → _SearchBar (visible when _isSearching)
+//         │     ├── SliverToBoxAdapter → _FilterChips (All / Favorites / Pinned)
+//         │     ├── SliverPadding
+//         │     │     └── _NoteList (switches on filteredActiveNotesProvider)
+//         │     │           ├── InkLoading (AsyncLoading)
+//         │     │           ├── InkErrorView (AsyncError)
+//         │     │           ├── InkEmptyState (empty list)
+//         │     │           └── SliverList of NoteCard widgets (data)
+//         └── FAB → _HomeFab (Extended FAB, placeholder)
+//
+// ─────────────────────────────────────────────────────────────────────────────
+// PROVIDER FLOW
+// ─────────────────────────────────────────────────────────────────────────────
+//
+//  User creates a note
+//    → ref.read(notesProvider.notifier).createNote(params)
+//      → Hive write
+//      → ref.invalidateSelf()
+//        → notesProvider rebuilds (AsyncNotifier fetches all notes)
+//          → filteredActiveNotesProvider rebuilds (derived, synchronous)
+//            → _NoteList rebuilds → new NoteCard appears
+//
+//  User taps a filter chip
+//    → ref.read(noteFilterProvider.notifier).state = NoteFilter.favorites
+//      → filteredActiveNotesProvider re-runs switch (synchronous, no Hive read)
+//        → _NoteList rebuilds with the new filtered + sorted list
+//
+// ─────────────────────────────────────────────────────────────────────────────
+// MATERIAL 3 LAYOUT DECISIONS
+// ─────────────────────────────────────────────────────────────────────────────
+//
+//  1. CustomScrollView + Slivers:
+//     Allows the SearchBar and FilterChips to scroll away naturally as the
+//     user scrolls down through notes — more premium than a fixed Column.
+//
+//  2. No NestedScrollView:
+//     NestScrollView causes jank on Android when a SliverList is inside.
+//     CustomScrollView with SliverAppBar is the correct M3 pattern.
+//
+//  3. Extended FAB (not round FAB):
+//     M3 spec recommends Extended FABs for primary create actions on screens
+//     where there is abundant horizontal space. It makes the primary action
+//     immediately recognizable without needing a tooltip.
+//
+//  4. Filter chips (not tabs):
+//     Tab bars are for full page navigation. Filter chips are for in-page
+//     filtering of a single list — this is the M3-correct component.
+//
+//  5. Responsive grid:
+//     On phones (< 600dp wide): 1-column list.
+//     On tablets (≥ 600dp wide): 2-column staggered grid.
+//     Implemented via LayoutBuilder + SliverGrid / SliverList.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -18,17 +71,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/errors/failures.dart';
 import '../../../../shared/providers/theme_provider.dart';
-import '../../../../shared/widgets/ink_button.dart';
-import '../../../../shared/widgets/ink_card.dart';
 import '../../../../shared/widgets/ink_empty_state.dart';
+import '../../../../shared/widgets/ink_error_view.dart';
 import '../../../../shared/widgets/ink_loading.dart';
-import '../../../../shared/widgets/ink_text_field.dart';
+import '../../../../shared/widgets/ink_snack_bar.dart';
+import '../../../notes/domain/entities/note_entity.dart';
+import '../../../notes/presentation/providers/note_filter.dart';
+import '../../../notes/presentation/providers/notes_notifier.dart';
+import '../../../notes/presentation/providers/notes_providers.dart';
+import '../../../notes/presentation/widgets/note_card.dart';
 
-/// Phase 0 demonstration screen.
+// ─────────────────────────────────────────────────────────────────────────────
+// HomeScreen
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// The main screen of InkFlow — displays the user's active notes.
 ///
-/// Renders all shared widgets so the entire design system can be reviewed
-/// and approved before Phase 1 Note CRUD implementation begins.
+/// Uses [ConsumerStatefulWidget] for local search-bar expand/collapse state
+/// while delegating all note data to Riverpod providers.
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -37,337 +99,581 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  final TextEditingController _textController = TextEditingController();
+  /// Controls whether the search bar is visible below the AppBar.
+  bool _isSearching = false;
 
-  bool _showLoading = false;
-  bool _showEmpty = false;
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocus = FocusNode();
 
   @override
   void dispose() {
-    _textController.dispose();
+    _searchController.dispose();
+    _searchFocus.dispose();
     super.dispose();
+  }
+
+  /// Opens the search bar and focuses the text field.
+  void _openSearch() {
+    setState(() => _isSearching = true);
+    // Defer focus to after the widget rebuilds.
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _searchFocus.requestFocus(),
+    );
+  }
+
+  /// Closes the search bar, clears the query, and releases the provider.
+  void _closeSearch() {
+    setState(() => _isSearching = false);
+    _searchController.clear();
+    ref.read(searchQueryProvider.notifier).state = '';
+    _searchFocus.unfocus();
   }
 
   @override
   Widget build(BuildContext context) {
+    return Scaffold(
+      body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          // ── SliverAppBar ────────────────────────────────────────────────
+          _HomeAppBar(
+            isSearching: _isSearching,
+            onSearchTap: _openSearch,
+            onCloseTap: _closeSearch,
+          ),
+
+          // ── Search Bar ──────────────────────────────────────────────────
+          if (_isSearching)
+            SliverToBoxAdapter(
+              child: _SearchBar(
+                controller: _searchController,
+                focusNode: _searchFocus,
+              ).animate().fadeIn(duration: AppSizes.durationFast).slideY(
+                    begin: -0.1,
+                    end: 0,
+                    duration: AppSizes.durationFast,
+                  ),
+            ),
+
+          // ── Filter Chips (hidden during search) ─────────────────────────
+          if (!_isSearching)
+            const SliverToBoxAdapter(child: _FilterChips()),
+
+          // ── Note List ───────────────────────────────────────────────────
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(
+              AppSizes.md,
+              AppSizes.sm,
+              AppSizes.md,
+              // Bottom padding — room for the FAB + safe area.
+              MediaQuery.paddingOf(context).bottom + AppSizes.xxxl,
+            ),
+            sliver: _isSearching
+                ? const _SearchResultsList()
+                : const _NoteList(),
+          ),
+        ],
+      ),
+
+      // ── Extended FAB ─────────────────────────────────────────────────────
+      floatingActionButton: _isSearching ? null : const _HomeFab(),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _HomeAppBar
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// The SliverAppBar for the Home screen.
+///
+/// - Floating: appears immediately when scrolling up (not pinned).
+/// - snap: snaps fully into view rather than partially appearing.
+/// - Title: "InkFlow" logotype in Playfair Display via the theme.
+class _HomeAppBar extends ConsumerWidget {
+  const _HomeAppBar({
+    required this.isSearching,
+    required this.onSearchTap,
+    required this.onCloseTap,
+  });
+
+  final bool isSearching;
+  final VoidCallback onSearchTap;
+  final VoidCallback onCloseTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final themeMode = ref.watch(themeModeNotifierProvider);
     final isDark = themeMode == ThemeMode.dark;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(AppStrings.appName),
-        actions: [
-          // ── Theme Toggle ─────────────────────────────────────────────────
-          // Demonstrates: ThemeModeNotifier, Hive persistence, flutter_animate.
-          Semantics(
-            label: AppStrings.semanticThemeToggle,
-            child: IconButton(
-              tooltip: isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode',
-              icon: AnimatedSwitcher(
-                duration: AppSizes.durationNormal,
-                transitionBuilder: (child, animation) => RotationTransition(
-                  turns: animation,
-                  child: FadeTransition(opacity: animation, child: child),
-                ),
-                child: Icon(
-                  isDark
-                      ? Icons.light_mode_outlined
-                      : Icons.dark_mode_outlined,
-                  key: ValueKey(isDark),
-                ),
-              ),
-              onPressed: () {
-                ref.read(themeModeNotifierProvider.notifier).toggle();
-              },
+    return SliverAppBar(
+      floating: true,
+      snap: true,
+      elevation: 0,
+      scrolledUnderElevation: 1,
+      backgroundColor: theme.colorScheme.surface,
+      // ── Title ─────────────────────────────────────────────────────────────
+      title: Text(
+        AppStrings.appName,
+        style: theme.textTheme.headlineSmall?.copyWith(
+          color: theme.colorScheme.onSurface,
+          fontWeight: FontWeight.w700,
+          letterSpacing: -0.5,
+        ),
+      ),
+      // ── Actions ───────────────────────────────────────────────────────────
+      actions: [
+        // Search icon — opens the search bar below.
+        if (!isSearching)
+          IconButton(
+            icon: const Icon(Icons.search_rounded),
+            tooltip: 'Search notes',
+            onPressed: onSearchTap,
+          ),
+
+        // Close search — returns to notes list.
+        if (isSearching)
+          IconButton(
+            icon: const Icon(Icons.close_rounded),
+            tooltip: 'Close search',
+            onPressed: onCloseTap,
+          ),
+
+        // Theme toggle (preserving the Phase 0 feature).
+        IconButton(
+          icon: AnimatedSwitcher(
+            duration: AppSizes.durationNormal,
+            transitionBuilder: (child, animation) => RotationTransition(
+              turns: animation,
+              child: FadeTransition(opacity: animation, child: child),
+            ),
+            child: Icon(
+              isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+              key: ValueKey(isDark),
             ),
           ),
-          const SizedBox(width: AppSizes.xs),
-        ],
-      ),
+          tooltip: isDark ? 'Switch to light mode' : 'Switch to dark mode',
+          onPressed: () =>
+              ref.read(themeModeNotifierProvider.notifier).toggle(),
+        ),
 
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSizes.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Phase Badge ─────────────────────────────────────────────────
-            const _PhaseStatusCard().animate().fadeIn(duration: AppSizes.durationNormal),
-
-            const SizedBox(height: AppSizes.xl),
-
-            // ── Section: InkTextField ────────────────────────────────────────
-            const _SectionLabel(label: 'InkTextField')
-                .animate()
-                .fadeIn(delay: const Duration(milliseconds: 80))
-                .slideX(begin: -0.1, end: 0),
-            const SizedBox(height: AppSizes.sm),
-            InkTextField(
-              controller: _textController,
-              hint: 'Search notes...',
-              prefixIcon: Icons.search_outlined,
-            )
-                .animate()
-                .fadeIn(delay: const Duration(milliseconds: 100))
-                .slideY(begin: 0.2, end: 0),
-
-            const SizedBox(height: AppSizes.sm),
-
-            InkTextField(
-              controller: _textController,
-              hint: 'Write your note here...',
-              label: 'Note Body',
-              maxLines: 4,
-            )
-                .animate()
-                .fadeIn(delay: const Duration(milliseconds: 120))
-                .slideY(begin: 0.2, end: 0),
-
-            const SizedBox(height: AppSizes.xl),
-
-            // ── Section: InkCard ─────────────────────────────────────────────
-            const _SectionLabel(label: 'InkCard')
-                .animate()
-                .fadeIn(delay: const Duration(milliseconds: 160))
-                .slideX(begin: -0.1, end: 0),
-            const SizedBox(height: AppSizes.sm),
-
-            // Plain card
-            InkCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Sample Note Title',
-                    style: theme.textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: AppSizes.xs),
-                  Text(
-                    'This is what a note card will look like. It supports '
-                    'multi-line content, and the background color can be '
-                    'tinted using any of the 8 curated note colors.',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            )
-                .animate()
-                .fadeIn(delay: const Duration(milliseconds: 180))
-                .slideY(begin: 0.2, end: 0),
-
-            const SizedBox(height: AppSizes.sm),
-
-            // Tinted card — Lavender note color
-            InkCard(
-              backgroundColor: const Color(0xFFD0BCFF),
-              onTap: () {},
-              child: Row(
-                children: [
-                  const Icon(Icons.push_pin_outlined, size: AppSizes.iconSm),
-                  const SizedBox(width: AppSizes.sm),
-                  Expanded(
-                    child: Text(
-                      'Lavender tinted card — tappable with ripple',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: const Color(0xFF21005D),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            )
-                .animate()
-                .fadeIn(delay: const Duration(milliseconds: 200))
-                .slideY(begin: 0.2, end: 0),
-
-            const SizedBox(height: AppSizes.xl),
-
-            // ── Section: InkButton ────────────────────────────────────────────
-            const _SectionLabel(label: 'InkButton Variants')
-                .animate()
-                .fadeIn(delay: const Duration(milliseconds: 240))
-                .slideX(begin: -0.1, end: 0),
-            const SizedBox(height: AppSizes.sm),
-
-            InkButton(
-              label: 'Primary — Create Note',
-              icon: Icons.add,
-              onPressed: () {},
-            )
-                .animate()
-                .fadeIn(delay: const Duration(milliseconds: 260)),
-
-            const SizedBox(height: AppSizes.sm),
-
-            InkButton.secondary(
-              label: 'Secondary — View Archive',
-              icon: Icons.archive_outlined,
-              onPressed: () {},
-            )
-                .animate()
-                .fadeIn(delay: const Duration(milliseconds: 280)),
-
-            const SizedBox(height: AppSizes.sm),
-
-            Row(
-              children: [
-                InkButton.text(
-                  label: 'Text Button',
-                  onPressed: () {},
-                )
-                    .animate()
-                    .fadeIn(delay: const Duration(milliseconds: 300)),
-                const SizedBox(width: AppSizes.sm),
-                Expanded(
-                  child: InkButton(
-                    label: 'Loading...',
-                    isLoading: true,
-                    onPressed: () {},
-                  )
-                      .animate()
-                      .fadeIn(delay: const Duration(milliseconds: 310)),
-                ),
-              ],
+        // More menu (placeholder — Step 9+).
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert_rounded),
+          tooltip: 'More options',
+          onSelected: (_) {}, // placeholder
+          itemBuilder: (_) => const [
+            PopupMenuItem(
+              value: 'archive',
+              child: Text('Archive'),
             ),
-
-            const SizedBox(height: AppSizes.sm),
-
-            InkButton.destructive(
-              label: 'Destructive — Delete Note',
-              icon: Icons.delete_outline,
-              onPressed: () {},
-            )
-                .animate()
-                .fadeIn(delay: const Duration(milliseconds: 320)),
-
-            const SizedBox(height: AppSizes.xl),
-
-            // ── Section: InkLoading & InkEmptyState ───────────────────────────
-            const _SectionLabel(label: 'InkLoading & InkEmptyState')
-                .animate()
-                .fadeIn(delay: const Duration(milliseconds: 360))
-                .slideX(begin: -0.1, end: 0),
-            const SizedBox(height: AppSizes.sm),
-
-            Row(
-              children: [
-                Expanded(
-                  child: InkButton.secondary(
-                    label: _showLoading ? 'Hide Loading' : 'Show Loading',
-                    onPressed: () =>
-                        setState(() => _showLoading = !_showLoading),
-                  ),
-                ),
-                const SizedBox(width: AppSizes.sm),
-                Expanded(
-                  child: InkButton.secondary(
-                    label: _showEmpty ? 'Hide Empty' : 'Show Empty',
-                    onPressed: () =>
-                        setState(() => _showEmpty = !_showEmpty),
-                  ),
-                ),
-              ],
+            PopupMenuItem(
+              value: 'trash',
+              child: Text('Trash'),
             ),
-
-            if (_showLoading) ...[
-              const SizedBox(height: AppSizes.xl),
-              const InkLoading(label: 'Loading your notes...'),
-            ],
-
-            if (_showEmpty) ...[
-              const SizedBox(height: AppSizes.md),
-              const InkEmptyState(
-                icon: Icons.note_outlined,
-                title: AppStrings.emptyNotesTitle,
-                subtitle: AppStrings.emptyNotesSubtitle,
-              ),
-            ],
-
-            // Bottom padding for scroll breathing room
-            const SizedBox(height: AppSizes.xxxl),
+            PopupMenuItem(
+              value: 'settings',
+              child: Text('Settings'),
+            ),
           ],
+        ),
+
+        const SizedBox(width: AppSizes.xs),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _SearchBar
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// An inline search field shown below the AppBar when search is active.
+///
+/// Writes the text value to [searchQueryProvider] on every keystroke,
+/// which triggers [searchResultsProvider] to re-execute.
+class _SearchBar extends ConsumerWidget {
+  const _SearchBar({
+    required this.controller,
+    required this.focusNode,
+  });
+
+  final TextEditingController controller;
+  final FocusNode focusNode;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSizes.md,
+        AppSizes.sm,
+        AppSizes.md,
+        AppSizes.xs,
+      ),
+      child: TextField(
+        controller: controller,
+        focusNode: focusNode,
+        textInputAction: TextInputAction.search,
+        style: theme.textTheme.bodyLarge,
+        decoration: InputDecoration(
+          hintText: 'Search your notes...',
+          prefixIcon: const Icon(Icons.search_rounded),
+          suffixIcon: controller.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear_rounded),
+                  onPressed: () {
+                    controller.clear();
+                    ref.read(searchQueryProvider.notifier).state = '';
+                  },
+                )
+              : null,
+        ),
+        onChanged: (value) {
+          ref.read(searchQueryProvider.notifier).state = value;
+        },
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _FilterChips
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Horizontal scrollable row of filter chips.
+///
+/// Watches [noteFilterProvider]. Selecting a chip writes a new [NoteFilter]
+/// value, which causes [filteredActiveNotesProvider] to re-derive from the
+/// same notes list — no Hive read needed.
+class _FilterChips extends ConsumerWidget {
+  const _FilterChips();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final activeFilter = ref.watch(noteFilterProvider);
+
+    return SizedBox(
+      height: 48,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: AppSizes.md),
+        children: NoteFilter.values.map((filter) {
+          final isSelected = filter == activeFilter;
+          return Padding(
+            padding: const EdgeInsets.only(right: AppSizes.sm),
+            child: FilterChip(
+              label: Text(_labelFor(filter)),
+              selected: isSelected,
+              showCheckmark: false,
+              avatar: Icon(
+                _iconFor(filter),
+                size: AppSizes.iconSm,
+              ),
+              onSelected: (_) {
+                ref.read(noteFilterProvider.notifier).state = filter;
+              },
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  String _labelFor(NoteFilter filter) => switch (filter) {
+        NoteFilter.all => 'All',
+        NoteFilter.favorites => 'Favorites',
+        NoteFilter.pinned => 'Pinned',
+      };
+
+  IconData _iconFor(NoteFilter filter) => switch (filter) {
+        NoteFilter.all => Icons.notes_rounded,
+        NoteFilter.favorites => Icons.favorite_border_rounded,
+        NoteFilter.pinned => Icons.push_pin_outlined,
+      };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _NoteList
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Watches [filteredActiveNotesProvider] and renders the appropriate state.
+///
+/// Adapts between phone (1-column SliverList) and tablet (2-column SliverGrid)
+/// using [LayoutBuilder] via the MediaQuery breakpoint.
+///
+/// How NoteCard is used:
+///   Each [NoteCard] is constructed with the [NoteEntity] and four callbacks.
+///   All callbacks call [notesProvider.notifier] methods — the card itself
+///   contains zero business logic. After each mutation, [notesProvider]
+///   invalidates itself, causing [filteredActiveNotesProvider] to re-derive
+///   and all [NoteCard]s to rebuild with fresh data.
+class _NoteList extends ConsumerWidget {
+  const _NoteList();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final notesAsync = ref.watch(filteredActiveNotesProvider);
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isTablet = screenWidth >= 600;
+
+    return notesAsync.when(
+      loading: () => const SliverToBoxAdapter(
+        child: SizedBox(
+          height: 200,
+          child: InkLoading(label: 'Loading notes...'),
+        ),
+      ),
+      error: (e, _) => SliverToBoxAdapter(
+        child: InkErrorView(
+          failure: e as Failure,
+          onRetry: () => ref.invalidate(notesProvider),
+        ),
+      ),
+      data: (notes) {
+        if (notes.isEmpty) {
+          return const SliverToBoxAdapter(
+            child: InkEmptyState(
+              icon: Icons.edit_note_rounded,
+              title: AppStrings.emptyNotesTitle,
+              subtitle: AppStrings.emptyNotesSubtitle,
+            ),
+          );
+        }
+
+        // Build NoteCard builders once — shared by both list and grid.
+        Widget buildCard(NoteEntity note, int index) {
+          return NoteCard(
+            key: ValueKey(note.id),
+            note: note,
+            animationDelay: Duration(milliseconds: index * 40),
+            onTap: () {
+              // Navigation to editor — Step 9.
+            },
+            onToggleFavorite: () => _toggleFavorite(context, ref, note),
+            onTogglePin: () => _togglePin(context, ref, note),
+            onArchive: () => _archive(context, ref, note),
+            onDelete: () => _delete(context, ref, note),
+          );
+        }
+
+        // ── Tablet: 2-column grid ──────────────────────────────────────────
+        if (isTablet) {
+          return SliverGrid(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: AppSizes.sm,
+              mainAxisSpacing: AppSizes.sm,
+              childAspectRatio: 1.4,
+            ),
+            delegate: SliverChildBuilderDelegate(
+              (_, index) => buildCard(notes[index], index),
+              childCount: notes.length,
+            ),
+          );
+        }
+
+        // ── Phone: 1-column list ───────────────────────────────────────────
+        return SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (_, index) => Padding(
+              padding: const EdgeInsets.only(bottom: AppSizes.sm),
+              child: buildCard(notes[index], index),
+            ),
+            childCount: notes.length,
+          ),
+        );
+      },
+    );
+  }
+
+  // ─── Mutation Handlers ──────────────────────────────────────────────────────
+
+  Future<void> _toggleFavorite(
+    BuildContext context,
+    WidgetRef ref,
+    NoteEntity note,
+  ) async {
+    final result =
+        await ref.read(notesProvider.notifier).toggleFavorite(note.id);
+    if (!context.mounted) return;
+    result.fold(
+      (f) => InkSnackBar.showError(context, f),
+      (_) => InkSnackBar.showSuccess(
+        context,
+        note.isFavorite ? 'Removed from favorites.' : 'Added to favorites.',
+      ),
+    );
+  }
+
+  Future<void> _togglePin(
+    BuildContext context,
+    WidgetRef ref,
+    NoteEntity note,
+  ) async {
+    final result = note.isPinned
+        ? await ref.read(notesProvider.notifier).unpinNote(note.id)
+        : await ref.read(notesProvider.notifier).pinNote(note.id);
+    if (!context.mounted) return;
+    result.fold(
+      (f) => InkSnackBar.showError(context, f),
+      (_) => InkSnackBar.showSuccess(
+        context,
+        note.isPinned ? 'Note unpinned.' : 'Note pinned.',
+      ),
+    );
+  }
+
+  Future<void> _archive(
+    BuildContext context,
+    WidgetRef ref,
+    NoteEntity note,
+  ) async {
+    final result =
+        await ref.read(notesProvider.notifier).archiveNote(note.id);
+    if (!context.mounted) return;
+    result.fold(
+      (f) => InkSnackBar.showError(context, f),
+      (_) => InkSnackBar.showSuccess(
+        context,
+        'Note archived.',
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () =>
+              ref.read(notesProvider.notifier).unarchiveNote(note.id),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _delete(
+    BuildContext context,
+    WidgetRef ref,
+    NoteEntity note,
+  ) async {
+    final result =
+        await ref.read(notesProvider.notifier).deleteNote(note.id);
+    if (!context.mounted) return;
+    result.fold(
+      (f) => InkSnackBar.showError(context, f),
+      (_) => InkSnackBar.showSuccess(
+        context,
+        'Note moved to trash.',
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () =>
+              ref.read(notesProvider.notifier).restoreNote(note.id),
         ),
       ),
     );
   }
 }
 
-// ─── Private sub-widgets ────────────────────────────────────────────────────
-// These are small, single-use widgets extracted to keep build() readable.
+// ─────────────────────────────────────────────────────────────────────────────
+// _SearchResultsList
+// ─────────────────────────────────────────────────────────────────────────────
 
-/// The Phase 0 status card shown at the top of the screen.
-class _PhaseStatusCard extends ConsumerWidget {
-  const _PhaseStatusCard();
+/// Shows search results from [searchResultsProvider].
+///
+/// Displayed in place of [_NoteList] when [_isSearching] is true.
+/// Auto-disposed when the search bar closes — query and results reset to [].
+class _SearchResultsList extends ConsumerWidget {
+  const _SearchResultsList();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
+    final query = ref.watch(searchQueryProvider);
+    final resultsAsync = ref.watch(searchResultsProvider);
 
-    return InkCard(
-      backgroundColor: theme.colorScheme.primaryContainer,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.rocket_launch_outlined,
-            color: theme.colorScheme.onPrimaryContainer,
-            size: AppSizes.iconLg,
-          ),
-          const SizedBox(width: AppSizes.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Phase 0 — Foundation ✅',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    color: theme.colorScheme.onPrimaryContainer,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: AppSizes.xs),
-                Text(
-                  'Clean Architecture · Riverpod · GoRouter · Hive · Material 3',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onPrimaryContainer
-                        .withValues(alpha: 0.75),
-                  ),
-                ),
-                const SizedBox(height: AppSizes.xs),
-                Text(
-                  'Toggle the ☀/🌙 icon in the top-right to switch themes.\n'
-                  'The preference is saved to Hive and persists across restarts.',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onPrimaryContainer
-                        .withValues(alpha: 0.75),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+    // Empty query → prompt the user to type something.
+    if (query.trim().isEmpty) {
+      return const SliverToBoxAdapter(
+        child: InkEmptyState(
+          icon: Icons.search_rounded,
+          title: 'Search your notes',
+          subtitle: 'Type to find notes by title or content.',
+        ),
+      );
+    }
+
+    return resultsAsync.when(
+      loading: () => const SliverToBoxAdapter(
+        child: SizedBox(height: 200, child: InkLoading()),
       ),
+      error: (e, _) => SliverToBoxAdapter(
+        child: InkErrorView(
+          failure: e as Failure,
+          onRetry: () => ref.invalidate(searchResultsProvider),
+        ),
+      ),
+      data: (notes) {
+        if (notes.isEmpty) {
+          return const SliverToBoxAdapter(
+            child: InkEmptyState(
+              icon: Icons.search_off_rounded,
+              title: AppStrings.emptySearchTitle,
+              subtitle: AppStrings.emptySearchSubtitle,
+            ),
+          );
+        }
+
+        return SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (_, index) => Padding(
+              padding: const EdgeInsets.only(bottom: AppSizes.sm),
+              child: NoteCard(
+                key: ValueKey(notes[index].id),
+                note: notes[index],
+                animationDelay: Duration(milliseconds: index * 30),
+                onTap: () {},
+                onToggleFavorite: null,
+                onTogglePin: null,
+                onArchive: null,
+                onDelete: null,
+              ),
+            ),
+            childCount: notes.length,
+          ),
+        );
+      },
     );
   }
 }
 
-/// A section label used to separate widget demos.
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({required this.label});
+// ─────────────────────────────────────────────────────────────────────────────
+// _HomeFab
+// ─────────────────────────────────────────────────────────────────────────────
 
-  final String label;
+/// The Extended FAB for creating a new note.
+///
+/// Navigation to the editor screen will be wired in Step 9.
+/// The FAB is hidden when the search bar is open to avoid visual clutter.
+class _HomeFab extends StatelessWidget {
+  const _HomeFab();
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Text(
-      label,
-      style: theme.textTheme.labelLarge?.copyWith(
-        color: theme.colorScheme.primary,
-        letterSpacing: 0.5,
-      ),
-    );
+    return FloatingActionButton.extended(
+      heroTag: 'home_fab',
+      onPressed: () {
+        // Step 9: context.push(RouteNames.noteEditor)
+      },
+      icon: const Icon(Icons.add_rounded),
+      label: const Text('New Note'),
+    )
+        .animate()
+        .fadeIn(
+          delay: const Duration(milliseconds: 300),
+          duration: AppSizes.durationNormal,
+        )
+        .slideY(
+          begin: 0.5,
+          end: 0,
+          delay: const Duration(milliseconds: 300),
+          duration: AppSizes.durationNormal,
+          curve: Curves.easeOutCubic,
+        );
   }
 }
