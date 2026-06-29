@@ -53,6 +53,15 @@ final class NoteNotFoundFailure extends Failure {
   const NoteNotFoundFailure(super.message);
 }
 
+/// Returned when an operation violates a business rule before reaching storage.
+///
+/// Examples:
+///   - Creating a note where both title and body are empty.
+/// The UI should display the [message] directly as user-facing feedback.
+final class NoteValidationFailure extends Failure {
+  const NoteValidationFailure(super.message);
+}
+
 /// Returned when a Hive read or write operation fails.
 ///
 /// Maps from [NoteStorageException] thrown by [NoteLocalDataSource].
