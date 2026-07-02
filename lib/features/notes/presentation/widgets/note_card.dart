@@ -167,106 +167,108 @@ class NoteCard extends StatelessWidget {
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+            child: Stack(
               children: [
-                // ── Colored left accent strip ────────────────────────────
-                if (_hasCustomColor)
-                  Container(
-                    width: 4,
-                    color: _accentColor(context),
-                  ),
-
                 // ── Card content ─────────────────────────────────────────
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSizes.md,
-                      AppSizes.md,
-                      AppSizes.sm,
-                      AppSizes.sm,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // ── Pin indicator ──────────────────────────────
-                        if (note.isPinned) ...[
-                          Icon(
-                            Icons.push_pin_rounded,
-                            size: AppSizes.iconSm,
-                            color: onCardVariant,
-                          ),
-                          const SizedBox(height: 6),
-                        ],
-
-                        // ── Title ──────────────────────────────────────
-                        if (hasTitle) ...[
-                          Text(
-                            note.title,
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              color: onCard,
-                              fontWeight: FontWeight.w600,
-                              height: 1.25,
-                              letterSpacing: -0.2,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (hasBody) const SizedBox(height: 6),
-                        ],
-
-                        // ── Body preview ───────────────────────────────
-                        if (hasBody)
-                          Text(
-                            note.body,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: onCardVariant,
-                              height: 1.45,
-                            ),
-                            maxLines: hasTitle ? 2 : 4,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-
-                        const SizedBox(height: AppSizes.sm),
-
-                        // ── Footer ─────────────────────────────────────
-                        Row(
-                          children: [
-                            Text(
-                              _timestamp(),
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: onCardVariant.withValues(alpha: 0.75),
-                                letterSpacing: 0.2,
-                              ),
-                            ),
-                            const Spacer(),
-                            // Favorite icon — direct tap target
-                            GestureDetector(
-                              onTap: onToggleFavorite,
-                              behavior: HitTestBehavior.opaque,
-                              child: Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  AppSizes.sm, AppSizes.xs,
-                                  AppSizes.xs, AppSizes.xs,
-                                ),
-                                child: Icon(
-                                  note.isFavorite
-                                      ? Icons.favorite_rounded
-                                      : Icons.favorite_border_rounded,
-                                  size: 16,
-                                  color: note.isFavorite
-                                      ? theme.colorScheme.error
-                                      : onCardVariant.withValues(alpha: 0.5),
-                                ),
-                              ),
-                            ),
-                          ],
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    _hasCustomColor ? AppSizes.md + 4 : AppSizes.md,
+                    AppSizes.md,
+                    AppSizes.sm,
+                    AppSizes.sm,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // ── Pin indicator ──────────────────────────────
+                      if (note.isPinned) ...[
+                        Icon(
+                          Icons.push_pin_rounded,
+                          size: AppSizes.iconSm,
+                          color: onCardVariant,
                         ),
+                        const SizedBox(height: 6),
                       ],
-                    ),
+
+                      // ── Title ──────────────────────────────────────
+                      if (hasTitle) ...[
+                        Text(
+                          note.title,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: onCard,
+                            fontWeight: FontWeight.w600,
+                            height: 1.25,
+                            letterSpacing: -0.2,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (hasBody) const SizedBox(height: 6),
+                      ],
+
+                      // ── Body preview ───────────────────────────────
+                      if (hasBody)
+                        Text(
+                          note.body,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: onCardVariant,
+                            height: 1.45,
+                          ),
+                          maxLines: hasTitle ? 2 : 4,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+
+                      const SizedBox(height: AppSizes.sm),
+
+                      // ── Footer ─────────────────────────────────────
+                      Row(
+                        children: [
+                          Text(
+                            _timestamp(),
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: onCardVariant.withValues(alpha: 0.75),
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                          const Spacer(),
+                          // Favorite icon — direct tap target
+                          GestureDetector(
+                            onTap: onToggleFavorite,
+                            behavior: HitTestBehavior.opaque,
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                AppSizes.sm, AppSizes.xs,
+                                AppSizes.xs, AppSizes.xs,
+                              ),
+                              child: Icon(
+                                note.isFavorite
+                                    ? Icons.favorite_rounded
+                                    : Icons.favorite_border_rounded,
+                                size: 16,
+                                color: note.isFavorite
+                                    ? theme.colorScheme.error
+                                    : onCardVariant.withValues(alpha: 0.5),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
+
+                // ── Colored left accent strip ────────────────────────────
+                if (_hasCustomColor)
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 4,
+                      color: _accentColor(context),
+                    ),
+                  ),
               ],
             ),
           ),

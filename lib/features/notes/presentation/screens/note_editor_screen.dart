@@ -159,7 +159,8 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
     _bodyController.dispose();
     _titleFocus.dispose();
     _scrollController.dispose();
-    ref.read(selectedNoteProvider.notifier).clear();
+    // Do NOT call ref.read() here — ref is invalid after disposal.
+    // clear() is called on every successful exit path while still mounted.
     super.dispose();
   }
 
@@ -250,7 +251,11 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
     if (!mounted) return;
     result.fold(
       (f) => InkSnackBar.showError(context, f),
-      (_) => Navigator.of(context).pop(),
+      (_) {
+        // Clear provider state while ref is still valid (widget is mounted).
+        ref.read(selectedNoteProvider.notifier).clear();
+        Navigator.of(context).pop();
+      },
     );
   }
 
@@ -276,7 +281,10 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
   Future<void> _handlePop(bool didPop, Object? result) async {
     if (didPop) return;
     if (!_hasUnsavedChanges) {
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        ref.read(selectedNoteProvider.notifier).clear();
+        Navigator.of(context).pop();
+      }
       return;
     }
     if (!mounted) return;
@@ -288,7 +296,10 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
       cancelLabel: 'Keep editing',
       isDestructive: true,
     );
-    if (discard && mounted) Navigator.of(context).pop();
+    if (discard && mounted) {
+      ref.read(selectedNoteProvider.notifier).clear();
+      Navigator.of(context).pop();
+    }
   }
 
   // ── AppBar Actions ─────────────────────────────────────────────────────────
@@ -339,7 +350,11 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
     if (!mounted) return;
     result.fold(
       (f) => InkSnackBar.showError(context, f),
-      (_) => Navigator.of(context).pop(),
+      (_) {
+        // Clear provider state while ref is still valid (widget is mounted).
+        ref.read(selectedNoteProvider.notifier).clear();
+        Navigator.of(context).pop();
+      },
     );
   }
 
@@ -359,7 +374,11 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
     if (!mounted) return;
     result.fold(
       (f) => InkSnackBar.showError(context, f),
-      (_) => Navigator.of(context).pop(),
+      (_) {
+        // Clear provider state while ref is still valid (widget is mounted).
+        ref.read(selectedNoteProvider.notifier).clear();
+        Navigator.of(context).pop();
+      },
     );
   }
 
@@ -641,6 +660,10 @@ class _EditorCanvas extends StatelessWidget {
             : Colors.black.withValues(alpha: 0.50))
         : theme.colorScheme.onSurfaceVariant;
 
+    // SliverFillRemaining(hasScrollBody: false) gives this widget a finite
+    // height equal to the remaining viewport. The Column uses that bounded
+    // height; the body TextField is wrapped in Expanded so it fills whatever
+    // vertical space is left after the title, metadata row, and divider.
     return Padding(
       padding: EdgeInsets.fromLTRB(
         AppSizes.lg,
@@ -725,30 +748,36 @@ class _EditorCanvas extends StatelessWidget {
           const SizedBox(height: AppSizes.md),
 
           // ── Body ───────────────────────────────────────────────────────
-          TextField(
-            controller: bodyController,
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: primaryText.withValues(alpha: 0.88),
-              height: 1.7,
-              letterSpacing: 0.1,
-            ),
-            decoration: InputDecoration(
-              hintText: 'Start writing…',
-              hintStyle: theme.textTheme.bodyLarge?.copyWith(
-                color: secondaryText.withValues(alpha: 0.45),
+          // Expanded gives the TextField a finite height (the leftover space
+          // inside the bounded Column) so Flutter never sees infinite height.
+          Expanded(
+            child: TextField(
+              controller: bodyController,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: primaryText.withValues(alpha: 0.88),
                 height: 1.7,
+                letterSpacing: 0.1,
               ),
-              border: InputBorder.none,
-              enabledBorder: InputBorder.none,
-              focusedBorder: InputBorder.none,
-              contentPadding: EdgeInsets.zero,
-              isDense: true,
-              fillColor: Colors.transparent,
-              filled: true,
+              decoration: InputDecoration(
+                hintText: 'Start writing…',
+                hintStyle: theme.textTheme.bodyLarge?.copyWith(
+                  color: secondaryText.withValues(alpha: 0.45),
+                  height: 1.7,
+                ),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+                isDense: true,
+                fillColor: Colors.transparent,
+                filled: true,
+              ),
+              maxLines: null,
+              expands: true,
+              keyboardType: TextInputType.multiline,
+              textCapitalization: TextCapitalization.sentences,
+              textAlignVertical: TextAlignVertical.top,
             ),
-            maxLines: null,
-            keyboardType: TextInputType.multiline,
-            textCapitalization: TextCapitalization.sentences,
           ),
         ],
       ),

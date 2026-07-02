@@ -20,7 +20,9 @@ import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../features/home/presentation/screens/home_screen.dart';
+import '../../features/notes/presentation/screens/archive_screen.dart';
 import '../../features/notes/presentation/screens/note_editor_screen.dart';
+import '../../features/notes/presentation/screens/trash_screen.dart';
 import 'route_names.dart';
 
 // This line tells build_runner to generate app_router.g.dart.
@@ -74,6 +76,30 @@ GoRouter appRouter(Ref ref) {
           return NoteEditorScreen(noteId: noteId);
         },
       ),
+
+      // ── Archive Screen ───────────────────────────────────────────────────────
+      // Path: /archive
+      // Opened from the Home Screen's "More" popup menu.
+      // Displays all archived notes; supports restore and move-to-trash actions.
+      GoRoute(
+        path: '/archive',
+        name: RouteNames.archive,
+        builder: (BuildContext context, GoRouterState state) {
+          return const ArchiveScreen();
+        },
+      ),
+
+      // ── Trash Screen ─────────────────────────────────────────────────────────
+      // Path: /trash
+      // Opened from the Home Screen's "More" popup menu.
+      // Displays all trashed notes; supports restore action only (Phase 3 Step 1).
+      GoRoute(
+        path: '/trash',
+        name: RouteNames.trash,
+        builder: (BuildContext context, GoRouterState state) {
+          return const TrashScreen();
+        },
+      ),
     ],
 
     // Shown when the user navigates to an unknown route.
@@ -90,4 +116,3 @@ GoRouter appRouter(Ref ref) {
     },
   );
 }
-

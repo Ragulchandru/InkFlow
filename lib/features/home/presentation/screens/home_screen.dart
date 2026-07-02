@@ -268,7 +268,17 @@ class _HomeAppBar extends ConsumerWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppSizes.radiusMd),
           ),
-          onSelected: (_) {},
+          onSelected: (value) {
+            switch (value) {
+              case 'archive':
+                context.pushNamed(RouteNames.archive);
+              case 'trash':
+                context.pushNamed(RouteNames.trash);
+              case 'settings':
+                // Settings screen — Phase 3 Step 2.
+                break;
+            }
+          },
           itemBuilder: (_) => const [
             PopupMenuItem(value: 'archive', child: Text('Archive')),
             PopupMenuItem(value: 'trash', child: Text('Trash')),
@@ -515,7 +525,7 @@ class _NoteList extends ConsumerWidget {
             note: note,
             animationDelay: Duration(milliseconds: index * 40),
             onTap: () {
-              context.goNamed(
+              context.pushNamed(
                 RouteNames.noteDetail,
                 pathParameters: {'id': note.id},
               );
@@ -725,10 +735,7 @@ class _HomeFab extends StatelessWidget {
   Widget build(BuildContext context) {
     return FloatingActionButton.extended(
       heroTag: 'home_fab',
-      onPressed: () {
-  debugPrint("FAB PRESSED");
-  context.pushNamed(RouteNames.noteEditor);
-},
+      onPressed: () => context.pushNamed(RouteNames.noteEditor),
       icon: const Icon(Icons.add_rounded),
       label: const Text('New Note'),
     ).animate().fadeIn(
